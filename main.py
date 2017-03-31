@@ -16,6 +16,7 @@
 #
 import webapp2
 import cgi
+import re
 
 # html boilerplate for the top of every page
 page_header = """
@@ -28,7 +29,8 @@ page_header = """
             color: red;
             }
         td {
-            text-align:right
+            text-align: left;
+            padding: 5px;
         }
     </style>
 </head>
@@ -42,97 +44,126 @@ page_footer = """
 </html>
 """
 
+#create functions to validate user input
+user_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+password_RE = re.compile(r"^.{3,20}$")
+email_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
+
+def valid_username(username):
+    return user_RE.match(username)
+
+def valid_password(password):
+    return password_RE.match(password)
+
+def valid_email(email):
+    return email_RE.match(email)
 
 class MainHandler(webapp2.RequestHandler):
     """ Handles requests coming in to '/' (the root of our site) """
 
     def get(self, uNameErr="", pWordErr="", vPWordErr="", eMailAddrErr=""):
 
-        edit_header = "<h3>Signup</h3>"
+        edit_header = "<h1>Signup</h1>"
 
         # a form for allowing user to signup for site
-        signup_form = """
-        <form action="/welcome" method="post">
-            <table style:width="100%">
+        signup_form_hdr = """
+        <form action="/AddUser" method="post">
+            <table style:width="100%">"""
+
+        signup_form_field1 = """
                 <tr>
                     <td><label>Username</td>
                     <td><input type="text" name="uName"/></label></td>
-                    <td><div class=error>{0}</div><br></td>
-                </tr>
+                    <td><div class=error>""" + self.request.get("uNameErr") + """</div><br></td>
+                </tr>"""
 
+        signup_form_field2 = """
                 <tr>
                     <td><label>Password</td>
                     <td><input type="text" name="pWord"/></label></td>
-                    <td><div class=error>{1}</div><br></td>
-                </tr>
+                    <td><div class=error>""" + self.request.get("pWordErr") + """</div><br></td>
+                </tr>"""
 
+        signup_form_field3 = """
                 <tr>
                     <td><label>Verify Password</td>
                     <td><input type="text" name="vPWord"/></label></td>
-                    <td><div class=error>{2}</div><br></td>
-                </tr>
+                    <td><div class=error>""" + self.request.get("vPWordErr") + """</div><br></td>
+                </tr>"""
 
+        signup_form_field4 = """
                 <tr>
                     <td><label>Email (optional)</td>
                     <td><input type="text" name="eMailAddr"/></label></td>
-                    <td><div class=error>{3}</div><br></td>
-                </tr>
+                    <td><div class=error>""" + self.request.get("eMailAddrErr") + """</div><br></td>
+                </tr>"""
+
+        signup_form_ftr = """
             </table>
             <input type="submit" value="Submit"/>
             <br>
-        </form>
-        """.format(uNameErr, pWordErr, vPWordErr, eMailAddrErr)
+        </form>"""
 
-        # if we have an error, make a <p> to display it
-        error = self.request.get("error")
-        if error:
-            error_esc = cgi.escape(error, quote=True)
-            error_element = '<p class="error">' + error_esc + '</p>'
-        else:
-            error_element = ''
+        signup_form = signup_form_hdr + signup_form_field1 + signup_form_field2 + signup_form_field3 + signup_form_field4 + signup_form_ftr
+
 
         # combine all the pieces to build the content of our response
-        content = page_header + edit_header + signup_form + error_element + page_footer
+        content = page_header + edit_header + signup_form + page_footer
         self.response.write(content)
 
 
 class AddUser(webapp2.RequestHandler):
-    """ Validate User Info and take User to Welcome page after successfully signing up for site """
-
+    """ Handles requests coming in to /AddUser """
     def post(self):
-        # look at input in signup_form to validate what user entered
+    # look at input in signup_form to validate what user entered
         u_Name = self.request.get("uName")
         p_Word = self.request.get("pWord")
         v_PWord = self.request.get("vPWord")
         eMail_Addr = self.request.get("eMailAddr")
 
-
-        #uNameErr = "Please enter a valid Username"
-        #pWordErr = "Please enter a valid Password"
-        #vPWordErr = "Your Passwords do not match"
-        #eMailAddrErr = "Please enter a valid Email address"
-
-        # TODO 1
         # 'escape' the user's input so that if they typed HTML, it doesn't mess up our site
+        esc_u_Name = cgi.escape(u_Name, quote=True)
+        esc_p_Word = cgi.escape(p_Word, quote=True)
+        esc_v_PWord = cgi.escape(v_PWord, quote=True)
+        esc_eMail_Addr = cgi.escape(eMail_Addr, quote=True)
 
+        # validate user input and build error message as needed
+        errFlag = False
 
+        if not valid_username(esc_u_Name):
+            uNameErr = "Please enter a valid Username"
+            errFlag = True
+        else:
+            uNameErr = ""
 
-        # TODO 2
-        # if the user typed nothing at all, redirect and yell at them
+        if not valid_password(esc_p_Word):
+            pWordErr = "Please enter a valid Password"
+            errFlag = True
+        else:
+            pWordErr = ""
 
+        if esc_v_PWord != esc_p_Word:
+            vPWordErr = "Your Passwords do not match"
+            errFlag = True
+        else:
+            vPWordErr = ""
 
+        if not valid_email(esc_eMail_Addr):
+            eMailAddrErr = "Please enter a valid Email address"
+            errFlag = True
+        else:
+            eMailAddrErr = ""
 
-        # TODO 3
-        # if the user wants to add a terrible movie, redirect and yell at them
+        #if errors exist, redirect user to form & provide error messages
+        if errFlag:
+            self.redirect("/?uNameErr=" + uNameErr, "pWordErr=" + pWordErr, "vPWordErr=" + vPWordErr, "eMailAddrErr=" + eMailAddrErr)
+        else:
+            # build response content
+            content = "<h2>Welcome, " + u_Name + "!</h2>"
+            self.response.write(content)
 
-
-
-
-        # build response content
-        content = "<h2>Welcome, " + u_Name + "!</h2>"
-        self.response.write(content)
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
-    ('/welcome', AddUser),
+    ('/AddUser', AddUser),
 ], debug=True)
