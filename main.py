@@ -1,19 +1,3 @@
-#!/usr/bin/env python
-#
-# Copyright 2007 Google Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
 import webapp2
 import cgi
 import re
@@ -45,76 +29,110 @@ page_footer = """
 """
 
 #create functions to validate user input
-user_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
-password_RE = re.compile(r"^.{3,20}$")
-email_RE = re.compile(r"^[\S]+@[\S]+\.[\S]+$")
-
 def valid_username(username):
+    user_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
     return user_RE.match(username)
 
 def valid_password(password):
+    password_RE = re.compile(r"^.{3,20}$")
     return password_RE.match(password)
 
 def valid_email(email):
+    email_RE = re.compile(r"^[\S]+@[\S]+\.[\S]+$")
     return email_RE.match(email)
 
-def build_form(uNameErr="",pWordErr="",vPWordErr="",eMailAddrErr="", uName="", pWord="", vPWord="", eMail=""):
-    # a form for allowing user to signup for site
-    form_hdr = """
+
+def getErrMsgs(errCode):
+    """ accept error code parameter that is 4 digits in length; any digit other than zero indicates a specific error
+        build a list of error messages based on digits in error code"""
+    errMsgs = []
+
+    if int(errCode[0]) > 0:
+        uNameErr = "Please enter a valid Username"
+    else:
+        uNameErr = ""
+
+    if int(errCode[1]) > 0:
+        pWordErr = "Please enter a valid Password"
+    else:
+        pWordErr = ""
+
+    if int(errCode[2]) > 0:
+        vPWordErr = "Your Passwords do not match"
+    else:
+        vPWordErr = ""
+
+    if int(errCode[3]) > 0:
+        eMailAddrErr = "Please enter a valid Email address"
+    else:
+        eMailAddrErr = ""
+
+    errMsgs = [uNameErr,pWordErr,vPWordErr,eMailAddrErr]
+
+    return(errMsgs)
+
+
+def build_form(errCode='0000', uName='', eMail=''):
+    """ build a form for allowing user to signup for site """
+
+    #call getErrMsgs fucntion to break error code out into specific error messages for use in building form
+    errMsgs = getErrMsgs(errCode)
+    uNameErr = str(errMsgs[0])
+    pWordErr = str(errMsgs[1])
+    vPWordErr = str(errMsgs[2])
+    eMailAddrErr = str(errMsgs[3])
+
+    #create variables containing sections of a form that can be concatenated to build an entire form
+    form_top = """
     <form action="/" method="post">
         <table style:width="100%">
         <h1>Signup</h1>"""
 
     form_field1 = """
             <tr>
-                <td><label>Username</td>
-                <td><input type='text' name='uName' value=""" + uName + """ ></label></td>
-                <td><div class=error>{0}</div><br></td>
+                <td><label>Username</td></label>
+                <td><input type='text' name='uName' required value='""" + uName + """' >
+                <span class=error>{0}</span><br></td>
             </tr>""".format(uNameErr)
 
     form_field2 = """
             <tr>
-                <td><label>Password</td>
-                <td><input type="text" name="pWord" value=""" + pWord + """ ></label></td>
-                <td><div class=error>{0}</div><br></td>
+                <td><label>Password</td></label>
+                <td><input type="password" name="pWord" required value="" >
+                <span class=error>{0}</span><br></td>
             </tr>""".format(pWordErr)
 
     form_field3 = """
             <tr>
-                <td><label>Verify Password</td>
-                <td><input type="text" name="vPWord" value=""" + vPWord + """ ></label></td>
-                <td><div class=error>{0}</div><br></td>
+                <td><label>Verify Password</td></label>
+                <td><input type="password" name="vPWord" required value="" >
+                <span class=error>{0}</span><br></td>
             </tr>""".format(vPWordErr)
 
     form_field4 = """
             <tr>
-                <td><label>Email (optional)</td>
-                <td><input type="text" name="eMailAddr" value=""" + eMail + """ ></label></td>
-                <td><div class=error>{0}</div><br></td>
+                <td><label>Email (optional)</td></label>
+                <td><input type="email" name="eMailAddr" value='""" + eMail + """' >
+                <span class=error>{0}</span><br></td>
             </tr>""".format(eMailAddrErr)
 
-    form_ftr = """
+    form_bottom = """
         </table>
         <input type="submit" value="Submit"/>
         <br>
     </form>"""
 
-    new_form = form_hdr + form_field1 + form_field2 + form_field3 + form_field4 + form_ftr
+    new_form = form_top + form_field1 + form_field2 + form_field3 + form_field4 + form_bottom
     return new_form
+
 
 class MainHandler(webapp2.RequestHandler):
     """ Handles requests coming in to '/' (the root of our site) """
 
-    def get(self, uNameErr="", pWordErr="", vPWordErr="", eMailAddrErr=""):
-
-        #edit_header = "<h1>Signup</h1>"
-
+    def get(self):
         signup_form = build_form()
-
-        # combine all the pieces to build the content of our response
         content = page_header + signup_form + page_footer
         self.response.write(content)
-
 
     def post(self):
         u_Name = self.request.get("uName")
@@ -122,63 +140,53 @@ class MainHandler(webapp2.RequestHandler):
         v_PWord = self.request.get("vPWord")
         eMail_Addr = self.request.get("eMailAddr")
 
-        # 'escape' the user's input so that if they typed HTML, it doesn't mess up our site
+        # 'escape' the user's input so that if they typed HTML, it doesn't hack our site
         esc_u_Name = cgi.escape(u_Name, quote=True)
         esc_p_Word = cgi.escape(p_Word, quote=True)
         esc_v_PWord = cgi.escape(v_PWord, quote=True)
         esc_eMail_Addr = cgi.escape(eMail_Addr, quote=True)
 
-        # validate user input and build error message as needed
-        errFlag = False
+        # validate user input and build 4-digit error code
+        errCode = ""
 
         if not valid_username(esc_u_Name):
-            uNameErr = "Please enter a valid Username"
-            errFlag = True
+            errCode = "1"
         else:
-            uNameErr = ""
+            errCode = "0"
 
         if not valid_password(esc_p_Word):
-            pWordErr = "Please enter a valid Password"
-            errFlag = True
+            errCode += "1"
         else:
-            pWordErr = ""
+            errCode += "0"
 
         if esc_v_PWord != esc_p_Word:
-            vPWordErr = "Your Passwords do not match"
-            errFlag = True
+            errCode += "1"
         else:
-            vPWordErr = ""
+            errCode += "0"
 
         if esc_eMail_Addr != "" and not valid_email(esc_eMail_Addr):
-            eMailAddrErr = "Please enter a valid Email address"
-            errFlag = True
+            errCode += "1"
         else:
-            eMailAddrErr = ""
+            errCode += "0"
 
         #if errors exist, redirect user to form & provide error messages
-        if errFlag:
-            #edit_header = "<h1>Signup</h1>"
-            error_form = build_form(uNameErr, pWordErr, vPWordErr, eMailAddrErr, esc_u_Name, esc_p_Word, esc_v_PWord, esc_eMail_Addr)
+        if errCode != "0000":
+            error_form = build_form(errCode, esc_u_Name, esc_eMail_Addr)
             content = page_header + error_form + page_footer
             self.response.write(content)
         else:
-            welcomeForm = """
-            <form action="/Welcome" method="post">"""
-            content = page_header + welcomeForm + "<h2>Welcome, " + u_Name + "!</h2>" + page_footer
-            self.response.write(content)
+            self.redirect('/Welcome?uName=' + esc_u_Name)
 
 
-class WelcomeUser(webapp2.RequestHandler):
-    """ Handles requests coming in to /WelcomeUser """
+class Welcome(webapp2.RequestHandler):
+    """ Handles requests coming in to /Welcome """
     def get(self):
-        #u_Name = self.request.get("uName")
-        welcomeForm = """
-        <form action="/Welcome" method="post">"""
-        content = page_header + welcomeForm + "<h2>Welcome, " + u_Name + "!</h2>" + page_footer
+        welcomeName = self.request.get("uName")
+        content = "<h1>Welcome, " + welcomeName + "!</h1>"
         self.response.write(content)
 
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
-    ('/Welcome', WelcomeUser),
+    ('/Welcome', Welcome),
 ], debug=True)
