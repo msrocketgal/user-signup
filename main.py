@@ -47,7 +47,7 @@ page_footer = """
 #create functions to validate user input
 user_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 password_RE = re.compile(r"^.{3,20}$")
-email_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
+email_RE = re.compile(r"^[\S]+@[\S]+\.[\S]+$")
 
 def valid_username(username):
     return user_RE.match(username)
@@ -58,64 +58,65 @@ def valid_password(password):
 def valid_email(email):
     return email_RE.match(email)
 
+def build_form(uNameErr="",pWordErr="",vPWordErr="",eMailAddrErr="", uName="", pWord="", vPWord="", eMail=""):
+    # a form for allowing user to signup for site
+    form_hdr = """
+    <form action="/" method="post">
+        <table style:width="100%">
+        <h1>Signup</h1>"""
+
+    form_field1 = """
+            <tr>
+                <td><label>Username</td>
+                <td><input type='text' name='uName' value=""" + uName + """ ></label></td>
+                <td><div class=error>{0}</div><br></td>
+            </tr>""".format(uNameErr)
+
+    form_field2 = """
+            <tr>
+                <td><label>Password</td>
+                <td><input type="text" name="pWord" value=""" + pWord + """ ></label></td>
+                <td><div class=error>{0}</div><br></td>
+            </tr>""".format(pWordErr)
+
+    form_field3 = """
+            <tr>
+                <td><label>Verify Password</td>
+                <td><input type="text" name="vPWord" value=""" + vPWord + """ ></label></td>
+                <td><div class=error>{0}</div><br></td>
+            </tr>""".format(vPWordErr)
+
+    form_field4 = """
+            <tr>
+                <td><label>Email (optional)</td>
+                <td><input type="text" name="eMailAddr" value=""" + eMail + """ ></label></td>
+                <td><div class=error>{0}</div><br></td>
+            </tr>""".format(eMailAddrErr)
+
+    form_ftr = """
+        </table>
+        <input type="submit" value="Submit"/>
+        <br>
+    </form>"""
+
+    new_form = form_hdr + form_field1 + form_field2 + form_field3 + form_field4 + form_ftr
+    return new_form
+
 class MainHandler(webapp2.RequestHandler):
     """ Handles requests coming in to '/' (the root of our site) """
 
     def get(self, uNameErr="", pWordErr="", vPWordErr="", eMailAddrErr=""):
 
-        edit_header = "<h1>Signup</h1>"
+        #edit_header = "<h1>Signup</h1>"
 
-        # a form for allowing user to signup for site
-        signup_form_hdr = """
-        <form action="/AddUser" method="post">
-            <table style:width="100%">"""
-
-        signup_form_field1 = """
-                <tr>
-                    <td><label>Username</td>
-                    <td><input type="text" name="uName"/></label></td>
-                    <td><div class=error>""" + self.request.get("uNameErr") + """</div><br></td>
-                </tr>"""
-
-        signup_form_field2 = """
-                <tr>
-                    <td><label>Password</td>
-                    <td><input type="text" name="pWord"/></label></td>
-                    <td><div class=error>""" + self.request.get("pWordErr") + """</div><br></td>
-                </tr>"""
-
-        signup_form_field3 = """
-                <tr>
-                    <td><label>Verify Password</td>
-                    <td><input type="text" name="vPWord"/></label></td>
-                    <td><div class=error>""" + self.request.get("vPWordErr") + """</div><br></td>
-                </tr>"""
-
-        signup_form_field4 = """
-                <tr>
-                    <td><label>Email (optional)</td>
-                    <td><input type="text" name="eMailAddr"/></label></td>
-                    <td><div class=error>""" + self.request.get("eMailAddrErr") + """</div><br></td>
-                </tr>"""
-
-        signup_form_ftr = """
-            </table>
-            <input type="submit" value="Submit"/>
-            <br>
-        </form>"""
-
-        signup_form = signup_form_hdr + signup_form_field1 + signup_form_field2 + signup_form_field3 + signup_form_field4 + signup_form_ftr
-
+        signup_form = build_form()
 
         # combine all the pieces to build the content of our response
-        content = page_header + edit_header + signup_form + page_footer
+        content = page_header + signup_form + page_footer
         self.response.write(content)
 
 
-class AddUser(webapp2.RequestHandler):
-    """ Handles requests coming in to /AddUser """
     def post(self):
-    # look at input in signup_form to validate what user entered
         u_Name = self.request.get("uName")
         p_Word = self.request.get("pWord")
         v_PWord = self.request.get("vPWord")
@@ -148,7 +149,7 @@ class AddUser(webapp2.RequestHandler):
         else:
             vPWordErr = ""
 
-        if not valid_email(esc_eMail_Addr):
+        if esc_eMail_Addr != "" and not valid_email(esc_eMail_Addr):
             eMailAddrErr = "Please enter a valid Email address"
             errFlag = True
         else:
@@ -156,14 +157,28 @@ class AddUser(webapp2.RequestHandler):
 
         #if errors exist, redirect user to form & provide error messages
         if errFlag:
-            self.redirect("/?uNameErr=" + uNameErr, "pWordErr=" + pWordErr, "vPWordErr=" + vPWordErr, "eMailAddrErr=" + eMailAddrErr)
-        else:
-            # build response content
-            content = "<h2>Welcome, " + u_Name + "!</h2>"
+            #edit_header = "<h1>Signup</h1>"
+            error_form = build_form(uNameErr, pWordErr, vPWordErr, eMailAddrErr, esc_u_Name, esc_p_Word, esc_v_PWord, esc_eMail_Addr)
+            content = page_header + error_form + page_footer
             self.response.write(content)
+        else:
+            welcomeForm = """
+            <form action="/Welcome" method="post">"""
+            content = page_header + welcomeForm + "<h2>Welcome, " + u_Name + "!</h2>" + page_footer
+            self.response.write(content)
+
+
+class WelcomeUser(webapp2.RequestHandler):
+    """ Handles requests coming in to /WelcomeUser """
+    def get(self):
+        #u_Name = self.request.get("uName")
+        welcomeForm = """
+        <form action="/Welcome" method="post">"""
+        content = page_header + welcomeForm + "<h2>Welcome, " + u_Name + "!</h2>" + page_footer
+        self.response.write(content)
 
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
-    ('/AddUser', AddUser),
+    ('/Welcome', WelcomeUser),
 ], debug=True)
